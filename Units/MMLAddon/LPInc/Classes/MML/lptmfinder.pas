@@ -14,7 +14,7 @@ procedure Register_TMFinder(Compiler: TLapeCompiler);
 implementation
 
 uses
-  finder, bitmaps, dtm, MufasaTypes;
+  mml_finder, bitmaps, dtm, MufasaTypes;
 
 type
   PMFinder = ^TMFinder;

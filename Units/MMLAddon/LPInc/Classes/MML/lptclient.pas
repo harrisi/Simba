@@ -17,11 +17,11 @@ uses
   client,
   iomanager
   {$IFDEF WINDOWS}, os_windows{$ENDIF}{$IFDEF LINUX}, os_linux{$ENDIF}
-  , files,
+  , mml_files,
   bitmaps,
   dtm,
   ocr,
-  finder,
+  mml_finder,
   MufasaTypes;
 
 type

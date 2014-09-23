@@ -30,7 +30,7 @@ interface
 
 uses
   Classes, SysUtils, MufasaTypes,MufasaBase,
-  IOManager, Files, Finder, Bitmaps, dtm, ocr,
+  IOManager, mml_files, mml_finder, Bitmaps, dtm, ocr,
   {$IFDEF MSWINDOWS} os_windows {$ENDIF}
   {$IFDEF LINUX} os_linux {$ENDIF};
 

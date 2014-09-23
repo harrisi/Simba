@@ -69,9 +69,9 @@
         <UnitName Value="MufasaTypes"/>
       </Unit3>
       <Unit4>
-        <Filename Value="../../Units/MMLCore/files.pas"/>
+        <Filename Value="../../Units/MMLCore/mml_files.pas"/>
         <IsPartOfProject Value="True"/>
-        <UnitName Value="files"/>
+        <UnitName Value="mml_files"/>
       </Unit4>
       <Unit5>
         <Filename Value="../../Units/MMLAddon/mmisc.pas"/>

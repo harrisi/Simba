@@ -21,7 +21,7 @@
     Finder class for the Mufasa Macro Library
 }
 
-unit finder;
+unit mml_finder;
 
 {$mode objfpc}{$H+}
 {$INLINE ON}

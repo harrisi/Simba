@@ -578,7 +578,7 @@ uses
    lclintf,
    syncobjs, // for the critical sections / mutexes
    debugimage,
-   files,
+   mml_files,
    InterfaceBase,
    bitmapconv,
    bitmaps,
