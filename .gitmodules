@@ -1,6 +1,6 @@
 [submodule "Lape"]
 	path = Units/lape
-	url = git://github.com/SRL/Lape.git
+url=git://github.com/willtcarey/Lape.git
 [submodule "PascalScript"]
 	path = Units/PascalScript
 	url = git://github.com/SRL/PascalScript.git
