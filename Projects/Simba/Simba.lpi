@@ -384,6 +384,16 @@
         <IsPartOfProject Value="True"/>
         <UnitName Value="lplclregexpr"/>
       </Unit62>
+      <Unit63>
+        <Filename Value="../../Units/MMLCore/os_mac.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="os_mac"/>
+      </Unit63>
+      <Unit64>
+        <Filename Value="../../Units/MMLAddon/LPInc/Classes/MML/lptiomanager_mac.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="lpTIOManager_Mac"/>
+      </Unit64>
     </Units>
   </ProjectOptions>
   <CompilerOptions>

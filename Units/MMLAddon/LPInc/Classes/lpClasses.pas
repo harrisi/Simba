@@ -47,6 +47,7 @@ uses
 
   {$IFDEF WINDOWS}, lpTIOManager_Windows {$ENDIF}
   {$IFDEF LINUX}, lpTIOManager_Linux {$ENDIF}
+  {$IFDEF DARWIN}, lpTIOManager_Mac {$ENDIF}
 
   , lpTClient,
 

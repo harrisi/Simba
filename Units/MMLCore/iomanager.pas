@@ -402,7 +402,8 @@ implementation
 
   uses FileUtil,
     {$IFDEF MSWINDOWS} os_windows {$ENDIF}
-    {$IFDEF LINUX} os_linux {$ENDIF};
+    {$IFDEF LINUX} os_linux {$ENDIF}
+    {$IFDEF DARWIN} os_mac {$ENDIF};
 
   var eios_controller: TEIOS_Controller;
 

@@ -32,7 +32,8 @@ uses
   Classes, SysUtils, MufasaTypes,MufasaBase,
   IOManager, mml_files, mml_finder, Bitmaps, dtm, ocr,
   {$IFDEF MSWINDOWS} os_windows {$ENDIF}
-  {$IFDEF LINUX} os_linux {$ENDIF};
+  {$IFDEF LINUX} os_linux {$ENDIF}
+  {$IFDEF DARWIN} os_mac {$ENDIF};
 
 (*
 

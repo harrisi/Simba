@@ -31,17 +31,14 @@ uses
   Classes, SysUtils,
   {$IFDEF MSWINDOWS} os_windows, {$ENDIF}
   {$IFDEF LINUX} os_linux,  ctypes, {$ENDIF}
+  {$IFDEF DARWIN} os_mac, ctypes, {$ENDIF}
   controls,
   graphics,
   forms,
   extctrls,
-  {$IFNDEF MSWINDOWS}x, xlib,xatom,
-  {$ELSE}
-  windows,
-  {$ENDIF}
-  mufasabase
-
-  ;
+  {$IFDEF LINUX}x, xlib,xatom,{$ENDIF}
+  {$IFDEF MSWINDOWS}windows,{$ENDIF}
+  mufasabase;
 
 type
     TMWindowSelector = class(TObject)
@@ -77,78 +74,84 @@ begin
   inherited;
 end;
 
-{$IFDEF LINUX}
-function TMWindowSelector.Drag: TNativeWindow;
-var
-  Tempwindow : x.TWindow;
-  root : x.TWindow;
-  subwindow : x.TWindow;
-  x_root, y_root : cint;
-  xmask : cuint;
-  x, y : cint;
-  //Old_Handler : TXErrorHandler;
+{$IFDEF UNIX}
+  {$IFDEF LINUX}
+  function TMWindowSelector.Drag: TNativeWindow;
+  var
+    Tempwindow : x.TWindow;
+    root : x.TWindow;
+    subwindow : x.TWindow;
+    x_root, y_root : cint;
+    xmask : cuint;
+    x, y : cint;
+    //Old_Handler : TXErrorHandler;
 
-  window_opacity: TAtom;
-  opacity_75: culong;
-  opacity_100: culong;
+    window_opacity: TAtom;
+    opacity_75: culong;
+    opacity_100: culong;
 
-begin
-  //Old_Handler := XSetErrorHandler(@MufasaXErrorHandler);
+  begin
+    //Old_Handler := XSetErrorHandler(@MufasaXErrorHandler);
 
-  Result := 0;
+    Result := 0;
 
-  window_opacity:=XInternAtom(manager.display,PChar('_NET_WM_WINDOW_OPACITY'), False);
-  opacity_75 := cuint($ffffffff * 0.75);
-  opacity_100 := cuint($ffffffff);
+    window_opacity:=XInternAtom(manager.display,PChar('_NET_WM_WINDOW_OPACITY'), False);
+    opacity_75 := cuint($ffffffff * 0.75);
+    opacity_100 := cuint($ffffffff);
 
-  repeat
-    // get pointer pos + current window we are at.
-    XQueryPointer(manager.display, manager.desktop, @root,
-                @Tempwindow, @x_root, @y_root,
-                @x, @y, @xmask);
-    subwindow:= Tempwindow;
+    repeat
+      // get pointer pos + current window we are at.
+      XQueryPointer(manager.display, manager.desktop, @root,
+                  @Tempwindow, @x_root, @y_root,
+                  @x, @y, @xmask);
+      subwindow:= Tempwindow;
 
-    while subwindow <> 0 do
-    begin
-        Tempwindow := subwindow;
-        XQueryPointer(manager.display, Tempwindow, @root,
-                 @subwindow, @x_root, @y_root,
-                 @x, @y, @xmask);
-    end;
+      while subwindow <> 0 do
+      begin
+          Tempwindow := subwindow;
+          XQueryPointer(manager.display, Tempwindow, @root,
+                   @subwindow, @x_root, @y_root,
+                   @x, @y, @xmask);
+      end;
 
 
 
-    if Result <> Tempwindow then
-    begin
-      mDebugLn('Making ' + inttostr(tempwindow) + ' transparent');
-      XChangeProperty(manager.display, tempwindow, window_opacity, XA_CARDINAL, 32, PropModeReplace, @opacity_75, 1);
+      if Result <> Tempwindow then
+      begin
+        mDebugLn('Making ' + inttostr(tempwindow) + ' transparent');
+        XChangeProperty(manager.display, tempwindow, window_opacity, XA_CARDINAL, 32, PropModeReplace, @opacity_75, 1);
 
-      mDebugLn('Resetting ' + inttostr(Result));
-      if result <> 0 then
-        XChangeProperty(manager.display, Result, window_opacity, XA_CARDINAL, 32, PropModeReplace, @opacity_100, 1);
-      mDebugLn('Changing Window from: ' +  Inttostr(result) +' to: ' + IntToStr(Tempwindow));
-     // XChangeProperty(Window.XDisplay, tempwindow, window_opacity, XA_CARDINAL, 32, PropModeReplace, @opacity_50, 1);
+        mDebugLn('Resetting ' + inttostr(Result));
+        if result <> 0 then
+          XChangeProperty(manager.display, Result, window_opacity, XA_CARDINAL, 32, PropModeReplace, @opacity_100, 1);
+        mDebugLn('Changing Window from: ' +  Inttostr(result) +' to: ' + IntToStr(Tempwindow));
+       // XChangeProperty(Window.XDisplay, tempwindow, window_opacity, XA_CARDINAL, 32, PropModeReplace, @opacity_50, 1);
 
-      Result := Tempwindow;
-      LastPick:= TempWindow;
-      haspicked:= true;
-    end;
+        Result := Tempwindow;
+        LastPick:= TempWindow;
+        haspicked:= true;
+      end;
+      XFlush(manager.display);
+      Sleep(16);
+
+      //if we are selecting for a long time, we must still process other messages
+      Application.ProcessMessages;
+
+    until (xmask and Button1Mask) = 0;
+
+    XChangeProperty(manager.display, Result, window_opacity, XA_CARDINAL, 32, PropModeReplace, @opacity_100, 1);
     XFlush(manager.display);
-    Sleep(16);
 
-    //if we are selecting for a long time, we must still process other messages
-    Application.ProcessMessages;
-
-  until (xmask and Button1Mask) = 0;
-
-  XChangeProperty(manager.display, Result, window_opacity, XA_CARDINAL, 32, PropModeReplace, @opacity_100, 1);
-  XFlush(manager.display);
-
-  //XSetErrorHandler(Old_handler);
-end;
-
+    //XSetErrorHandler(Old_handler);
+  end;
+  {$ELSE}
+  function TMWindowSelector.Drag: TNativeWindow;
+  begin
+    Result := 2;
+    LastPick := 2;
+  end;
+  {$ENDIF}
 {$ELSE}
-
 function TMWindowSelector.Drag: TNativeWindow;
 var
   TargetRect: TRect;

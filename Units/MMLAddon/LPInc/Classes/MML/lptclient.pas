@@ -16,7 +16,7 @@ implementation
 uses
   client,
   iomanager
-  {$IFDEF WINDOWS}, os_windows{$ENDIF}{$IFDEF LINUX}, os_linux{$ENDIF}
+  {$IFDEF WINDOWS}, os_windows{$ENDIF}{$IFDEF LINUX}, os_linux{$ENDIF}{$IFDEF DARWIN}, os_mac{$ENDIF}
   , mml_files,
   bitmaps,
   dtm,

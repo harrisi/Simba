@@ -42,7 +42,7 @@ uses
 
   {$IFDEF MSWINDOWS} os_windows, windows, shellapi,{$ENDIF} //For ColorPicker etc.
   {$IFDEF LINUX} os_linux, {$ENDIF} //For ColorPicker etc.
-
+  {$IFDEF DARWIN} os_mac, {$ENDIF}
   colourpicker, windowselector, Clipbrd, // We need these for the Colour Picker and Window Selector
 
   framescript,
@@ -69,7 +69,7 @@ const
   interp_LP = 1; //Lape
 
   { Place the shortcuts here }
-  {$IFDEF LINUX}
+  {$IFDEF UNIX}
   shortcut_StartScript = '<Ctrl><Alt>R';
   shortcut_StopScript =  '<Ctrl><Alt>S';
   shortcut_PickColour =  '<Ctrl><Alt>P';

@@ -32,6 +32,7 @@ uses
   Graphics,
   {$IFDEF MSWINDOWS} os_windows, {$ENDIF}
   {$IFDEF LINUX} os_linux, {$ENDIF}
+  {$IFDEF DARWIN} os_mac, {$ENDIF}
   MufasaTypes, colourhistory,bitmaps
 
   {$IFNDEF PICKER_CLIENT}
