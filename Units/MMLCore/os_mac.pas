@@ -34,18 +34,11 @@ interface
 
   uses
     Classes, SysUtils, mufasatypes, mufasabase, IOManager,
-    xlib, x, xutil, XKeyInput, ctypes, syncobjs,
-    CocoaAll, MacOSAll;
+    CocoaAll, MacOSAll, CarbonProc;
 
   type
 
     TNativeWindow = CGWindowId;
-
-    TKeyInput = class(TXKeyInput)
-      public
-        procedure Down(Key: Word);
-        procedure Up(Key: Word);
-    end;
 
     { TWindow }
 
@@ -88,9 +81,6 @@ interface
         { windowId is the id of our window }
         windowId: CGWindowId;
 
-        { KeyInput class }
-        keyinput: TKeyInput;
-
         { (Forced) Client Area }
         mx1, my1, mx2, my2: integer;
         ix1, iy1, ix2, iy2: integer;
@@ -119,61 +109,20 @@ implementation
 
   uses GraphType, interfacebase, lcltype;
 
-  { PROBLEM: .Create is called on the main thread. ErrorCS etc aren't
-    created on other threads. We will create them on the fly...
-    More info below...}
-  threadvar
-    xerror: string;
-  threadvar
-    ErrorCS: syncobjs.TCriticalSection;
-
-
- {
-    This is extremely hacky, but also very useful.
-    We have to install a X error handler, because otherwise X
-    will terminate our entire app on error.
-
-    Since we want the right thread to recieve the right error, we have to
-    fiddle a bit with threadvars, mutexes / semaphores.
-
-    Another problem is that the script thread is initialised on the main thread.
-    This means that all (threadvar!) semaphores initialised on the mainthread
-    are NOT initialised on the script thread, which has yet to be started.
-    Therefore, we check if it hasn't been created yet.
-
-    ** Horrible solution, but WFM **
-
-    This is the Handler function.
-
-  }
-
- { TKeyInput }
-
-  procedure TKeyInput.Down(Key: Word);
-  begin
-    DoDown(Key);
-  end;
-
-  procedure TKeyInput.Up(Key: Word);
-  begin
-    DoUp(Key);
-  end;
-
   { TWindow }
 
   function TWindow.GetError: String;
   begin
-    exit(xerror);
+    // Error handling?
   end;
 
   function  TWindow.ReceivedError: Boolean;
   begin
-    result := xerror <> '';
+     Result := False;
   end;
 
   procedure TWindow.ResetError;
   begin
-    xerror := '';
   end;
 
   { See if the semaphores / CS are initialised }
@@ -182,7 +131,6 @@ implementation
     inherited Create;
     self.windowId := windowId;
 
-    self.keyinput:= TKeyInput.Create;
     self.mx1 := 0; self.my1 := 0; self.mx2 := 0; self.my2 := 0;
     self.mcaset := false;
     self.ix1 := 0; self.iy1 := 0; self.ix2 := 0; self.iy2 := 0;
@@ -192,7 +140,6 @@ implementation
   destructor TWindow.Destroy;
   begin
     FreeReturnData;
-    keyinput.Free;
     inherited Destroy;
   end;
 
@@ -207,8 +154,8 @@ implementation
   end;
 
   procedure TWindow.GetTargetDimensions(out w, h: integer);
-  var
-    Attrib: TXWindowAttributes;
+  {var
+    Attrib: TXWindowAttributes;}
   begin
     {if icaset then
     begin
@@ -228,8 +175,8 @@ implementation
   end;
 
   procedure TWindow.GetTargetPosition(out left, top: integer);
-  var
-    Attrib: TXWindowAttributes;
+  {var
+    Attrib: TXWindowAttributes; }
   begin
     {if XGetWindowAttributes(display, window, @Attrib) <> 0 Then
     begin
@@ -245,11 +192,12 @@ implementation
   end;
 
   function TWindow.TargetValid: boolean;
-  var
-    Attrib: TXWindowAttributes;
+  {var
+    Attrib: TXWindowAttributes;}
   begin
     {XGetWindowAttributes(display, window, @Attrib);
     result := not ReceivedError; }
+    Result := True;
   end;
 
   { SetClientArea allows you to use a part of the actual client as a virtual
@@ -503,14 +451,108 @@ implementation
     end;
   end;
 
-  procedure TWindow.HoldKey(key: integer);
+  function CreateStringForKey(Key: CGKeyCode): CFStringRef;
+  var
+    currentKeyboard: TISInputSourceRef;
+    layoutData: CFDataRef;
+    keyboardLayout: ^UCKeyboardLayout;
+    keysDown: UInt32;
+    chars: array [0..3] of UniChar;
+    realLength: UniCharCount;
   begin
-    keyinput.Down(key);
+    currentKeyboard := TISCopyCurrentKeyboardInputSource();
+    layoutData :=
+        TISGetInputSourceProperty(currentKeyboard,
+                                  kTISPropertyUnicodeKeyLayoutData);
+    keyboardLayout := CFDataGetBytePtr(layoutData);
+
+    keysDown := 0;
+
+    UCKeyTranslate(keyboardLayout^,
+                   Key,
+                   kUCKeyActionDisplay,
+                   0,
+                   LMGetKbdType(),
+                   kUCKeyTranslateNoDeadKeysBit,
+                   keysDown,
+                   round(sizeof(chars) / sizeof(chars[0])),
+                   realLength,
+                   chars);
+    CFRelease(currentKeyboard);
+
+    Result := CFStringCreateWithCharacters(kCFAllocatorDefault, chars, 1);
+  end;
+
+  function GetMacKeyCode(Key: Word): CGKeyCode;
+  var
+    charToCodeDict: CFMutableDictionaryRef;
+    code: CGKeyCode;
+    character: UniChar;
+    charStr, str: CFStringRef;
+    i: size_t;
+
+  begin
+    if ((Key < 48) or (Key > 90)) then
+    begin
+      Result := VirtualKeyCodeToMac(Key);
+      Exit;
+    end;
+
+    character := Word(LowerCase(Char(Key)));
+
+    // TODO: This dictionary needs to be mapped when the TWindow object is created
+    charToCodeDict := CFDictionaryCreateMutable(kCFAllocatorDefault,
+                                                 128,
+                                                 @kCFCopyStringDictionaryKeyCallBacks,
+                                                 nil);
+    if (charToCodeDict = nil) then
+    begin
+      Result := -1;
+      Exit;
+    end;
+
+    { Loop through every keycode (0 - 127) to find its current mapping. }
+    for i := 0 to 127 do
+    begin
+      str := CreateStringForKey(CGKeyCode(i));
+      //NSLog(NSSTR('%ld: %@'), i, str);
+      if not (str = nil) then
+      begin
+          CFDictionaryAddValue(charToCodeDict, str, UnivPtr(i));
+          CFRelease(str);
+      end;
+    end;
+    //////////////////////////////////////////////////////////////////////////////
+
+    charStr := CFSTR(@character);
+     //NSLog(NSSTR('%@'), charStr);
+    if not (CFDictionaryGetValueIfPresent(charToCodeDict, charStr,
+                                       @code)) then
+    begin
+        code := -1;
+    end;
+
+    CFRelease(charStr);
+    Result := code;
+  end;
+
+  procedure TWindow.HoldKey(key: integer);
+  var
+    event: CGEventRef;
+    character: char;
+  begin
+    event := CGEventCreateKeyboardEvent(nil, GetMacKeyCode(key), Integer(true));
+    CGEventPost(kCGSessionEventTap, event);
+    CFRelease(event);
   end;
 
   procedure TWindow.ReleaseKey(key: integer);
+  var
+    event: CGEventRef;
   begin
-    keyinput.Up(key);
+    event := CGEventCreateKeyboardEvent(nil, GetMacKeyCode(key), Integer(false));
+    CGEventPost(kCGSessionEventTap, event);
+    CFRelease(event);
   end;
 
   function TWindow.IsKeyHeld(key: integer): boolean;
