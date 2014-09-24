@@ -557,7 +557,7 @@ implementation
 
   function TWindow.IsKeyHeld(key: integer): boolean;
   begin
-    raise Exception.CreateFmt('IsKeyDown isn''t implemented yet on Linux', []);
+    Result := Boolean(CGEventSourceKeyState(kCGEventSourceStateCombinedSessionState, GetMacKeyCode(key)));
   end;
 
   function TWindow.GetKeyCode(c: char): integer;
