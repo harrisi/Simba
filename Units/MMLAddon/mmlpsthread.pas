@@ -1347,7 +1347,7 @@ end;
 
 procedure lp_CurrThreadID(Params: PParamArray; Result: Pointer); lape_extdecl
 begin
-  PPtrUInt(Result)^ := GetCurrentThreadID();
+  PPtrUInt(Result)^ := {$IFDEF DARWIN}PtrUInt(GetCurrentThreadID()){$ELSE}GetCurrentThreadID(){$ENDIF};
 end;
 
 {$I LPInc/Wrappers/lp_other.inc}
