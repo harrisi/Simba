@@ -81,6 +81,9 @@ interface
         { windowId is the id of our window }
         windowId: CGWindowId;
 
+        { Dictionary of chars to key codes }
+        CharCodeDict: CFDictionaryRef;
+
         { (Forced) Client Area }
         mx1, my1, mx2, my2: integer;
         ix1, iy1, ix2, iy2: integer;
@@ -88,6 +91,7 @@ interface
 
         procedure MouseApplyAreaOffset(var x, y: integer);
         procedure ImageApplyAreaOffset(var x, y: integer);
+        function GetMacKeyCode(Key: Word): CGKeyCode;
     end;
 
     TIOManager = class(TIOManager_Abstract)
@@ -108,6 +112,88 @@ interface
 implementation
 
   uses GraphType, interfacebase, lcltype;
+
+  function CreateStringForKey(Key: CGKeyCode): CFStringRef;
+  var
+    currentKeyboard: TISInputSourceRef;
+    layoutData: CFDataRef;
+    keyboardLayout: ^UCKeyboardLayout;
+    keysDown: UInt32;
+    chars: array [0..3] of UniChar;
+    realLength: UniCharCount;
+  begin
+    currentKeyboard := TISCopyCurrentKeyboardInputSource();
+    layoutData :=
+        TISGetInputSourceProperty(currentKeyboard,
+                                  kTISPropertyUnicodeKeyLayoutData);
+    keyboardLayout := CFDataGetBytePtr(layoutData);
+
+    keysDown := 0;
+
+    UCKeyTranslate(keyboardLayout^,
+                   Key,
+                   kUCKeyActionDisplay,
+                   0,
+                   LMGetKbdType(),
+                   kUCKeyTranslateNoDeadKeysBit,
+                   keysDown,
+                   round(sizeof(chars) / sizeof(chars[0])),
+                   realLength,
+                   chars);
+    CFRelease(currentKeyboard);
+
+    Result := CFStringCreateWithCharacters(kCFAllocatorDefault, chars, 1);
+  end;
+
+  function CreateCharCodeDict: CFDictionaryRef;
+  var
+    i: Integer;
+    str: CFStringRef;
+  begin
+    Result := CFDictionaryCreateMutable(kCFAllocatorDefault,
+                                                 128,
+                                                 @kCFCopyStringDictionaryKeyCallBacks,
+                                                 nil);
+
+    { Loop through every keycode (0 - 127) to find its current mapping. }
+    for i := 0 to 127 do
+    begin
+      str := CreateStringForKey(CGKeyCode(i));
+      //NSLog(NSSTR('%ld: %@'), i, str);
+      if not (str = nil) then
+      begin
+          CFDictionaryAddValue(Result, str, UnivPtr(i));
+          CFRelease(str);
+      end;
+    end;
+  end;
+
+  function TWindow.GetMacKeyCode(Key: Word): CGKeyCode;
+  var
+    code: CGKeyCode;
+    character: UniChar;
+    charStr: CFStringRef;
+    i: size_t;
+  begin
+    if ((Key < 48) or (Key > 90)) then
+    begin
+      Result := VirtualKeyCodeToMac(Key);
+      Exit;
+    end;
+
+    character := Word(LowerCase(Char(Key)));
+    charStr := CFSTR(@character);
+
+     //NSLog(NSSTR('%@'), charStr);
+    if not (CFDictionaryGetValueIfPresent(CharCodeDict, charStr,
+                                       @code)) then
+    begin
+        code := -1;
+    end;
+
+    CFRelease(charStr);
+    Result := code;
+  end;
 
   { TWindow }
 
@@ -130,6 +216,8 @@ implementation
   begin
     inherited Create;
     self.windowId := windowId;
+
+    self.CharCodeDict := CreateCharCodeDict;
 
     self.mx1 := 0; self.my1 := 0; self.mx2 := 0; self.my2 := 0;
     self.mcaset := false;
@@ -449,91 +537,6 @@ implementation
         ReleaseKey(VK_SHIFT);
       end;
     end;
-  end;
-
-  function CreateStringForKey(Key: CGKeyCode): CFStringRef;
-  var
-    currentKeyboard: TISInputSourceRef;
-    layoutData: CFDataRef;
-    keyboardLayout: ^UCKeyboardLayout;
-    keysDown: UInt32;
-    chars: array [0..3] of UniChar;
-    realLength: UniCharCount;
-  begin
-    currentKeyboard := TISCopyCurrentKeyboardInputSource();
-    layoutData :=
-        TISGetInputSourceProperty(currentKeyboard,
-                                  kTISPropertyUnicodeKeyLayoutData);
-    keyboardLayout := CFDataGetBytePtr(layoutData);
-
-    keysDown := 0;
-
-    UCKeyTranslate(keyboardLayout^,
-                   Key,
-                   kUCKeyActionDisplay,
-                   0,
-                   LMGetKbdType(),
-                   kUCKeyTranslateNoDeadKeysBit,
-                   keysDown,
-                   round(sizeof(chars) / sizeof(chars[0])),
-                   realLength,
-                   chars);
-    CFRelease(currentKeyboard);
-
-    Result := CFStringCreateWithCharacters(kCFAllocatorDefault, chars, 1);
-  end;
-
-  function GetMacKeyCode(Key: Word): CGKeyCode;
-  var
-    charToCodeDict: CFMutableDictionaryRef;
-    code: CGKeyCode;
-    character: UniChar;
-    charStr, str: CFStringRef;
-    i: size_t;
-
-  begin
-    if ((Key < 48) or (Key > 90)) then
-    begin
-      Result := VirtualKeyCodeToMac(Key);
-      Exit;
-    end;
-
-    character := Word(LowerCase(Char(Key)));
-
-    // TODO: This dictionary needs to be mapped when the TWindow object is created
-    charToCodeDict := CFDictionaryCreateMutable(kCFAllocatorDefault,
-                                                 128,
-                                                 @kCFCopyStringDictionaryKeyCallBacks,
-                                                 nil);
-    if (charToCodeDict = nil) then
-    begin
-      Result := -1;
-      Exit;
-    end;
-
-    { Loop through every keycode (0 - 127) to find its current mapping. }
-    for i := 0 to 127 do
-    begin
-      str := CreateStringForKey(CGKeyCode(i));
-      //NSLog(NSSTR('%ld: %@'), i, str);
-      if not (str = nil) then
-      begin
-          CFDictionaryAddValue(charToCodeDict, str, UnivPtr(i));
-          CFRelease(str);
-      end;
-    end;
-    //////////////////////////////////////////////////////////////////////////////
-
-    charStr := CFSTR(@character);
-     //NSLog(NSSTR('%@'), charStr);
-    if not (CFDictionaryGetValueIfPresent(charToCodeDict, charStr,
-                                       @code)) then
-    begin
-        code := -1;
-    end;
-
-    CFRelease(charStr);
-    Result := code;
   end;
 
   procedure TWindow.HoldKey(key: integer);
