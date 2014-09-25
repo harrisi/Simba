@@ -92,6 +92,7 @@ interface
         procedure MouseApplyAreaOffset(var x, y: integer);
         procedure ImageApplyAreaOffset(var x, y: integer);
         function GetMacKeyCode(Key: Word): CGKeyCode;
+        function WindowRect: CGRect;
     end;
 
     TIOManager = class(TIOManager_Abstract)
@@ -195,6 +196,27 @@ implementation
     Result := code;
   end;
 
+  function TWindow.WindowRect: CGRect;
+  var
+    windowInfoArr: CFArrayRef;
+    windowArr: CFMutableArrayRef;
+    windowInfo, windowBounds: CFDictionaryRef;
+  begin
+    // In carbon you have to pass an array of window ids that you want information about
+    windowArr := CFArrayCreateMutable(nil, 1, nil);
+    CFArrayAppendValue(windowArr, UnivPtr(windowId));
+
+    windowInfoArr := CGWindowListCreateDescriptionFromArray(windowArr);
+    if (CFArrayGetCount(windowInfoArr) < 1) then
+    begin
+        Exit(CGRectNull);
+    end;
+    windowInfo := CFDictionaryRef(CFArrayGetValueAtIndex(windowInfoArr, 0));
+    windowBounds := CFDictionaryRef(CFDictionaryGetValue(windowInfo, kCGWindowBounds));
+
+    CGRectMakeWithDictionaryRepresentation(windowBounds, Result);
+  end;
+
   { TWindow }
 
   function TWindow.GetError: String;
@@ -233,7 +255,7 @@ implementation
 
   function TWindow.GetNativeWindow: TNativeWindow;
   begin
-    result := self.windowId;
+    Exit(windowId);
   end;
 
   function TWindow.GetHandle(): PtrUInt;
@@ -242,50 +264,37 @@ implementation
   end;
 
   procedure TWindow.GetTargetDimensions(out w, h: integer);
-  {var
-    Attrib: TXWindowAttributes;}
+  var
+    rect: CGRect;
   begin
-    {if icaset then
+    if icaset then
     begin
       w := ix2 - ix1;
       h := iy2 - iy1;
       exit;
     end;
-    if XGetWindowAttributes(display, window, @Attrib) <> 0 Then
-    begin
-      W := Attrib.Width;
-      H := Attrib.Height;
-    end else
-    begin
-      W := -1;
-      H := -1;
-    end;  }
+
+    rect := WindowRect;
+
+    w := round(rect.size.width);
+    h := round(rect.size.height);
   end;
 
   procedure TWindow.GetTargetPosition(out left, top: integer);
-  {var
-    Attrib: TXWindowAttributes; }
+  var
+    rect: CGRect;
   begin
-    {if XGetWindowAttributes(display, window, @Attrib) <> 0 Then
-    begin
-      left := Attrib.x;
-      top := attrib.y;
-    end else
-    begin
-      // XXX: this is tricky; what do we return when it doesn't exist?
-      // The window can very well be at -1, -1. We'll return 0 for now.
-      left := 0;
-      top := 0;
-    end;  }
+    rect := WindowRect;
+
+    left := round(rect.origin.x);
+    top := round(rect.origin.y);
   end;
 
   function TWindow.TargetValid: boolean;
-  {var
-    Attrib: TXWindowAttributes;}
+  var
+    rect: CGRect;
   begin
-    {XGetWindowAttributes(display, window, @Attrib);
-    result := not ReceivedError; }
-    Result := True;
+    Result := not Boolean(CGRectIsNull(WindowRect));
   end;
 
   { SetClientArea allows you to use a part of the actual client as a virtual
@@ -606,7 +615,7 @@ implementation
         break;
     end;
     self.DesktopWindowId := CGWindowId(CFDictionaryGetValue(window, kCGWindowNumber)^);}
-    self.DesktopWindowId := kCGNullWindowId;
+    self.DesktopWindowId := 2;
   end;
 
   procedure TIOManager.NativeFree;
