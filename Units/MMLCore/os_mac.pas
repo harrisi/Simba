@@ -377,8 +377,11 @@ implementation
   var
     w, h: integer;
     rect: CGRect;
-    imageRef: CGImageRef;
+    image: CGImageRef;
     data: CFDataRef;
+    Context: CGContextRef;
+    ColorSpace: CGColorSpaceRef;
+    ScalingFactor: Double;
   begin
     GetTargetDimensions(w,h);
     if (xs < 0) or (xs + width > w) or (ys < 0) or (ys + height > h) then
@@ -387,9 +390,23 @@ implementation
     ImageApplyAreaOffset(xs, ys);
 
     rect := CGRectMake(xs, ys, width, height);
-    imageRef := CGWindowListCreateImage(rect, kCGWindowListOptionOnScreenOnly, kCGNullWindowID, kCGWindowImageShouldBeOpaque);
-    data := CGDataProviderCopyData(CGImageGetDataProvider(imageRef));
 
+    image := CGWindowListCreateImage(rect, kCGWindowListOptionOnScreenOnly, kCGNullWindowID, kCGWindowImageDefault);
+
+    // This is a newer method and the FPC libraries don't have it yet
+    //ScalingFactor := NSScreen.mainScreen.backingScaleFactor;
+    ScalingFactor := CGImageGetWidth(image) / width; // Poor man's scaling factor implementation
+    if (ScalingFactor > 1) then // We need to scale the image down
+    begin
+      ColorSpace := CGImageGetColorSpace(image);
+      Context := CGBitmapContextCreate(nil, width, height, 8, 0, ColorSpace, CGImageGetBitmapInfo(image));
+      CGColorSpaceRelease(ColorSpace);
+      CGContextDrawImage(Context, rect, image);
+      image := CGBitmapContextCreateImage(Context);
+      CGContextRelease(Context);
+    end;
+
+    data := CGDataProviderCopyData(CGImageGetDataProvider(image));
     Result.Ptr := CFDataGetBytePtr(data);
     Result.IncPtrWith := 0;
     Result.RowLen := width;
