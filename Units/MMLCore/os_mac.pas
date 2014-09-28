@@ -421,12 +421,17 @@ implementation
   var
     event: CGEventRef;
     point: CGPoint;
+    Rect: CGRect;
   begin
     event := CGEventCreate(nil);
     point := CGEventGetLocation(event);
+    Rect := WindowRect;
 
     x := round(point.x);
     y := round(point.y);
+
+    x := x - round(Rect.origin.x);
+    y := y - round(Rect.origin.y);
 
     x := x - mx1;
     y := y - my1;
