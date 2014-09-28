@@ -441,9 +441,11 @@ implementation
   var
     point: CGPoint;
     event: CGEventRef;
+    Rect: CGRect;
   begin
     MouseApplyAreaOffset(x, y);
-    point := CGPointMake(x, y);
+    Rect := WindowRect;
+    point := CGPointMake(x + Rect.origin.x, y + Rect.origin.y + 23); // 23 is height of menu bar which doesn't count
     event := CGEventCreateMouseEvent( nil, {kCGEventMouseMoved}5, point, 0);
     CGEventPost(kCGSessionEventTap, event);
     CFRelease(event);
